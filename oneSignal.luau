@@ -1,5 +1,6 @@
 -- Author: @EternityDev (Eternity_Devs)
 -- oneSignal Module (a custom signal module)
+-- (https://github.com/imezx/oneSignal/blob/main/oneSignal.luau)
 
 local oneSignal = {}
 oneSignal.ClassName = "oneSignal"
