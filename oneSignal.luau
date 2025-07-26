@@ -1,3 +1,4 @@
+--!optimize 2
 -- Author: @EternityDev (Eternity_Devs)
 -- oneSignal Module (a custom signal module)
 -- (https://github.com/imezx/oneSignal/blob/main/oneSignal.luau)
@@ -8,7 +9,7 @@ oneSignal.__index = oneSignal
 
 local Collections = {}
 
-function oneSignal.new(identifier)
+function oneSignal.new(identifier: string)
 	assert(typeof(identifier) == "string", "[oneSignal]: Identifier must be string")
 	assert(not Collections[identifier], string.format("[oneSignal]: %s already exist", identifier))
 	Collections[identifier] = setmetatable({
@@ -20,34 +21,30 @@ function oneSignal.new(identifier)
 	return Collections[identifier]
 end
 
-function oneSignal.get(identifier)
+function oneSignal.get(identifier: string)
 	assert(Collections[identifier], string.format("[oneSignal]: %s not exist", identifier))
 	return Collections[identifier]
 end
 
-function oneSignal:Connect(callback)
-	if self then
-		assert(not self.Connected, string.format("[oneSignal]: %s already connected", self.Identifier))
-		self.cb = callback
-		self.Connected = true
-	end
+function oneSignal:Connect(callback: (...any) -> ())
+	assert(not self.Connected, string.format("[oneSignal]: %s already connected", self.Identifier))
+	self.cb = callback
+	self.Connected = true
 end
 
-function oneSignal:Wait()
-	if self then
-		local thread = coroutine.running()
-		local clock = os.clock()
-		self._ping = function(x)
-			task.spawn(thread, x - clock)
-			self._ping = nil
-		end
-		return coroutine.yield()
+function oneSignal:Wait(): number
+	local thread = coroutine.running()
+	local clock = os.clock()
+	self._ping = function(x)
+		task.spawn(thread, x - clock)
+		self._ping = nil
 	end
+	return coroutine.yield()
 end
 
 function oneSignal:Once(callback)
-	if self and not self.Connected then
-		self.cb = function(...)
+	if not self.Connected then
+		self.cb = function(...: any)
 			self:Disconnect()
 			task.spawn(callback, ...)
 		end
@@ -56,7 +53,7 @@ function oneSignal:Once(callback)
 end
 
 function oneSignal:Disconnect()
-	if self and self.Connected then
+	if self.Connected then
 		self.Connected = false
 		self.cb = nil
 	end
@@ -64,21 +61,19 @@ end
 
 function oneSignal:Destroy()
 	self:Disconnect()
-	if self then
-		Collections[self.Identifier] = nil
-		self = nil
+	Collections[self.Identifier] = nil
+	table.clear(self)
+	setmetatable(self, nil)
+end
+
+function oneSignal:Fire(...: any)
+	if self.Connected then
+		task.spawn(self.cb, ...)
+	end
+	if self._ping then
+		task.spawn(self._ping, os.clock())
 	end
 end
 
-function oneSignal:Fire(...)
-	if self then
-		if self.Connected then
-			task.spawn(self.cb, ...)
-		end
-		if self._ping then
-			task.spawn(self._ping, os.clock())
-		end
-	end
-end
+return table.freeze(oneSignal) :: typeof(oneSignal)
 
-return table.freeze(oneSignal)
